@@ -28,17 +28,22 @@ TheCatBouncer is a vision‑based, two‑phase monitoring system that **recognis
 
 ## Features
 
-| Category                        | Details                                                                                   |
-| ------------------------------- | ----------------------------------------------------------------------------------------- |
-| **High‑accuracy cat detection** | YOLOv11/yolo11l_openvino models (user‑selectable) with automatic fallback CPU → CUDA → OpenVINO       |
-| **Owner vs. intruder logic**    | Simple colour‑histogram analysis lets you whitelist *your* cat with just a few HSV ranges |
-| **Two‑phase efficiency**        | Low‑res passive monitoring → High‑res active analysis when motion/light is detected       |
-| **Smart‑home integration**      | Native **Philips Hue** support (lights on/off, colour changes, flash patterns)            |
-| **Automatic deterrents**        | Plays custom scare sounds (`.wav` / `.mp3`) + light show for unknown cats                 |
-| **Scheduled operation**         | Active hours / quiet hours & daily maintenance cron (backup + cleanup)                    |
-| **Data management**             | Incremental backups to NAS, automatic disk‑space pruning                                  |
-| **Cross‑platform**              | Runs on Windows, macOS & Linux; works with any UVC webcam                                 |
-| **Fully configurable**          | Single `config.ini` controls *everything*; no code changes required                       |
+| Category                        | Details                                                                                                                             |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **High‑accuracy cat detection** | YOLOv11/yolo11l_openvino models (user‑selectable) with automatic fallback CPU → CUDA → OpenVINO                                     |
+| **Owner vs. intruder logic**    | Simple colour‑histogram analysis lets you whitelist your cat with just a few HSV ranges                                             |
+| **Two‑phase efficiency**        | Low‑res passive monitoring → High‑res active analysis when motion/light is detected                                                 |
+| **Smart‑home integration**      | Native Philips Hue support (lights on/off, colour changes, flash patterns)                                                          |
+| **Automatic deterrents**        | Plays custom scare sounds (.wav / .mp3) + light show for unknown cats (pick randome on if more than one file is in the folder)      |
+| **Scheduled operation**         | Active hours / quiet hours & daily maintenance cron                                                                                 |
+| **Configurable maintenance window** | Backups & storage cleanup run **once per day at a user‑defined **`` after the main loop, ensuring great efficiency                  |
+| **Robust NAS backup**           | OS‑aware snapshots via rsync** (Linux/macOS)** or robocopy** (Windows)** with placeholder detection to prevent misconfigurations      |
+| **Data management**             | Incremental backups, disk‑space pruning, rolling rotation (auto‑deletes backups older than X days)                                  |
+| **Disk‑space watchdog**         | Continuously monitors free space and purges the oldest videos / logs when the threshold is breached                                 |
+| **CLI overrides & threaded I/O** | Command‑line flags for live preview & inference device – plus a threaded video stream for <20 ms capture latency                    |
+| **Comprehensive logging**       | Multi‑level logging: daily logs, system logs, per‑event YOLO detections with frame snapshots & bounding‑box coordinates              |
+| **Cross‑platform**              | Runs on Windows, macOS & Linux; works with any UVC webcam                                                                           |
+| **Fully configurable**          | Single config.ini controls everything – no code changes required                                                                    |
 
 ---
 
