@@ -205,7 +205,7 @@ Make sure to run `ruff` and `black` before committing.
 
 ## License
 
-This project is licensed under the **i have no IDEA LICENS** – see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
 
 ---
 
