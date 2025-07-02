@@ -96,7 +96,7 @@ $ cd TheCatBouncer
 $ conda env create -f environment.yml
 $ conda activate catbouncer-env
 
-# 3. (Optional) Install Ultralytics if you want YOLOv8
+# 3. (Optional) Install Ultralytics if you want YOLOv11
 $ pip install ultralytics
 
 # 4. Add your scare sounds
@@ -131,7 +131,7 @@ fps_niedrig = 10
 fps_hoch    = 30
 
 [Bilderkennung]
-yolo_modell_pfad         = models/yolov8n.pt
+yolo_modell_pfad         = models/yolov11n.pt
 katzen_klassen_id        = 15
 katzen_sicherheit_schwelle = 0.8
 
@@ -176,7 +176,7 @@ TheCatBouncer/
 ├── cat_scare_sound/            # Your audio deterrents (*.wav / *.mp3)
 ├── CatDetectorData/            # Data for cat detection (automatically created)
 │   ├── Cat_detection_information_debugging/ # Debugging information for cat detection
-│   ├── Cat_detection_information_YOLOv8_debugging/ # Debugging information for YOLOv8 cat detection
+│   ├── Cat_detection_information_YOLOv11_debugging/ # Debugging information for YOLOv11 cat detection
 │   ├── Systemprotokolle/       # System logs
 │   ├── Tagesprotokolle/        # Daily logs
 │   └── VideoAufnahmen_Debug/   # Debug video recordings
