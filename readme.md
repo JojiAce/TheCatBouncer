@@ -168,13 +168,22 @@ python TheCatBouncer.py --device cuda:0
 
 ```
 TheCatBouncer/
-├── cat_scare_sound/        # Your audio deterrents (*.wav / *.mp3)
-├── models/                 # YOLO weights (.pt) or OpenVINO (.xml+.bin)
-├── backups/                # NAS snapshots (optional)
-├── VideoRecordings_Debug/  # Saved camera clips (optional)
-├── TheCatBouncer.py        # Main entry‑point
-├── config.sample.ini       # Template config – **commit me**
-└── environment.yml         # Conda env definition
+├── cat_scare_sound/            # Your audio deterrents (*.wav / *.mp3)
+├── CatDetectorData/            # Data for cat detection (automatically created)
+│   ├── Cat_detection_information_debugging/ # Debugging information for cat detection
+│   ├── Cat_detection_information_YOLOv8_debugging/ # Debugging information for YOLOv8 cat detection
+│   ├── Systemprotokolle/       # System logs
+│   ├── Tagesprotokolle/        # Daily logs
+│   └── VideoAufnahmen_Debug/   # Debug video recordings
+├── HelpingProgramms/           # Tools for various tasks
+│   ├── philips_hue_setup_tool/ # Tool for Philips Hue setup
+├── models/                     # YOLO weights (.pt) or OpenVINO (.xml+.bin) - as referenced in config.ini
+├── yolo11_openvino_model_paths/ # OpenVINO model paths
+├── yolo11_pt_format_model_paths/ # PyTorch format model paths
+├── backups/                    # NAS snapshots (optional)
+├── TheCatBouncer_sample.py     # Main entry‑point (sample script)
+├── config.sample.ini           # Template config – **commit me**
+├── environment.yml             # Conda env definition
 ```
 
 ---
@@ -194,7 +203,7 @@ Make sure to run `ruff` and `black` before committing.
 
 ## License
 
-This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **i have no IDEA LICENS** – see the [LICENSE](LICENSE) file for details.
 
 ---
 
