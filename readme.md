@@ -116,7 +116,7 @@ end_zeit   = 07:00   # Monitoring ends 7 AM
 [PhilipsHue]
 bridge_ip = YOUR_BRIDGE_IP_HEAR
 app_key   = YOUR_APP_KEY_HERE
-licht_ids = YOUR_LICHT_IDS_HEAR
+licht_ids = YOUR_LIGHT_IDS_HEAR
 
 [Kamera]
 kamera_index      = 0
