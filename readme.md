@@ -70,7 +70,7 @@ flowchart TD
 
 - USB / IP webcam (720p+ recommended)
 - **Optional:** Philips Hue bridge + lights
-- **Optional:** NAS with SMB share for backups
+- **Optional:** off-site backups to a NAS (via SMB on Windows or SSH/SCP on Linux/macOS)
 
 ### Software
 
@@ -116,7 +116,7 @@ end_zeit   = 07:00   # Monitoring ends 7 AM
 [PhilipsHue]
 bridge_ip = YOUR_BRIDGE_IP_HEAR
 app_key   = YOUR_APP_KEY_HERE
-licht_ids = YOUR_LIGHT_IDS_HEAR
+licht_ids = YOUR_LICHT_IDS_HEAR
 
 [Kamera]
 kamera_index      = 0
