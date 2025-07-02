@@ -1,0 +1,30 @@
+name: savebounce-env
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  # Core Python - with macOS specific package for GUI support
+  - python=3.10      # [win or linux]
+  - python.app       # [osx]
+
+  # Core packages available on all platforms
+  - opencv
+  - numpy
+  - requests
+  - pygame
+  - psutil
+  - yaml
+
+  # PyTorch dependencies (required for all platforms)
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cpuonly
+
+  # Pip-installed packages
+  - pip
+  - pip:
+    - ultralytics
+    - openvino
+    - onnx
