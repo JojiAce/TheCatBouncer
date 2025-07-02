@@ -96,10 +96,7 @@ $ cd TheCatBouncer
 $ conda env create -f environment.yml
 $ conda activate catbouncer-env
 
-# 3. (Optional) Install Ultralytics if you want YOLOv11
-$ pip install ultralytics
-
-# 4. Add your scare sounds
+# 3. Add your scare sounds
 $ mkdir -p cat_scare_sound && cp ~/Downloads/bark.mp3 cat_scare_sound/
 ```
 
