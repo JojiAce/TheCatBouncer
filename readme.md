@@ -160,8 +160,7 @@ python TheCatBouncer.py --device cuda:0
 | Flag                                 | Description                       | Default      |
 | ------------------------------------ | --------------------------------- | ------------ |
 | `--live-preview / --no-live-preview` | Show/hide OpenCV window           | From config  |
-| `--device {cpu,cuda:0,gpu}`          | Force inference device            | Auto‑detect  |
-| `--debug`                            | Verbose logging & visual overlays | Off          |
+| `--device {cpu,cuda:0,gpu}`          | Force inference device            | From config  |
 
 ---
 
