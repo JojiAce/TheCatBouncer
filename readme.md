@@ -41,7 +41,7 @@ TheCatBouncer is a vision‑based, two‑phase monitoring system that **recognis
 | **Robust NAS backup**           | OS‑aware snapshots via rsync** (Linux/macOS)** or robocopy** (Windows)** with placeholder detection to prevent misconfigurations      |
 | **Data management**             | Incremental backups, disk‑space pruning, rolling rotation (auto‑deletes backups older than X days)                                  |
 | **Disk‑space watchdog**         | Continuously monitors free space and purges the oldest videos / logs when the threshold is breached                                 |
-| **CLI overrides & threaded I/O** | Command‑line flags for live preview & inference device – plus a threaded video stream for <20 ms capture latency                    |
+| **CLI overrides & threaded I/O** | Command‑line flags for live preview & inference device – plus a threaded video stream                    |
 | **Comprehensive logging**       | Multi‑level logging: daily logs, system logs, per‑event YOLO detections with frame snapshots & bounding‑box coordinates              |
 | **Live Debug Window**           | For Quick Debugging the Active Phase + FPS counter of the actual prozest frames by the Detection Model in the left upper corner          |
 | **Cross‑platform**              | Runs on Windows, macOS & Linux; works with any webcam                                                                           |
