@@ -109,7 +109,7 @@ $ mkdir -p cat_scare_sound
 Copy the template and fill in **your** values:
 
 ```bash
-cp config.sample.ini config.ini
+cp config.ini
 ```
 
 ```ini
