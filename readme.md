@@ -82,7 +82,7 @@ flowchart TD
 ### Software
 
 - Python **3.10**
-- [Conda ≥ 23] or [Mamba] for environment management
+- [Conda ≥ 23] for environment management
 - Dependencies listed in `environment.yml`
 
 ---
