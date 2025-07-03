@@ -151,18 +151,20 @@ schwarz_pixel_schwelle = 0.5
 python TheCatBouncer.py
 
 # Force live preview window
-python TheCatBouncer.py --live-preview
+python TheCatBouncer.py --live-preview     # show window
+python TheCatBouncer.py --no-live-preview  # hide window
 
 # Override inference device
-python TheCatBouncer.py --device cuda:0
+python TheCatBouncer.py -d cuda:0          # short flag
+python TheCatBouncer.py --device cuda:0    # long flag
 ```
 
 ### CLI Reference
 
-| Flag                                 | Description                       | Default      |
-| ------------------------------------ | --------------------------------- | ------------ |
-| `--live-preview / --no-live-preview` | Show/hide OpenCV window           | From config  |
-| `--device {cpu,cuda:0,gpu}`          | Force inference device            | From config  |
+| Flag                                   | Description                 | Default     |
+| -------------------------------------- | --------------------------- | ----------- |
+| `--live-preview / --no-live-preview`   | Show/hide OpenCV window     | From config |
+| `-d, --device {cpu,cuda:0,gpu}`        | Force inference device      | From config |
 
 ---
 
@@ -178,10 +180,14 @@ TheCatBouncer/
 │   ├── Tagesprotokolle/        # Daily logs
 │   └── VideoAufnahmen_Debug/   # Debug video recordings
 ├── HelpingProgramms/           # Tools for various tasks
-│   ├── philips_hue_setup_tool/ # Tool for Philips Hue setup
+│   └── philips_hue_setup_tool/ # Tool for Philips Hue setup
 ├── models/                     # YOLO weights (.pt) or OpenVINO (.xml+.bin) - as referenced in config.ini
 ├── yolo11_openvino_model_paths/ # OpenVINO model paths
+│   ├── yolo11l_openvino_model    # This one is for large openvino model
+│   └── ...                       # One folder for each model size  (if you want)
 ├── yolo11_pt_format_model_paths/ # PyTorch format model paths
+│   ├── yolo11m.pt                # This one is for the m pt model
+│   └── ...                       # One folder for each model size (if you want)
 ├── backups/                    # NAS snapshots (optional)
 ├── TheCatBouncer_sample.py     # Main entry‑point (sample script)
 ├── config.sample.ini           # Template config – **commit me**
