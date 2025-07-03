@@ -35,7 +35,7 @@ TheCatBouncer is a vision‑based, two‑phase monitoring system that **recognis
 | **Owner vs. intruder logic**    | Simple colour‑histogram analysis lets you whitelist your cat with just a few HSV ranges                                             |
 | **Two‑phase efficiency**        | Low‑res passive monitoring → High‑res active analysis                                                 |
 | **Smart‑home integration**      | Native Philips Hue support (lights on/off, colour changes, flash patterns)                                                          |
-| **Automatic deterrents**        | Plays custom scare sounds (.wav / .mp3) + activate lights for unknown cats (pick randome on if more than one file is in the folder)      |
+| **Automatic deterrents**        | Plays custom scare sounds (.wav / .mp3) + activate lights for unknown cats (it picks one random sound file if more than one file is in the folder)      |
 | **Scheduled operation**         | Active hours / quiet hours & daily maintenance cron                                                                                 |
 | **Configurable maintenance window** | Backups & storage cleanup run **once per day at a user‑defined **`` after the main loop, ensuring great efficiency                  |
 | **Robust NAS backup**           | OS‑aware snapshots via rsync** (Linux/macOS)** or robocopy** (Windows)** with placeholder detection to prevent misconfigurations      |
