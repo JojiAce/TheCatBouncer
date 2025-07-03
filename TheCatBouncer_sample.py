@@ -218,6 +218,10 @@ class ThreadedVideoStream:
         (self.grabbed, self.frame) = self.stream.read()
         self.name = name
         self.stopped = False
+        
+        # --- LATENCY MEASUREMENT ATTRIBUTES ---
+        self.latency_ms = 0
+        self.last_grab_time = time.time()
 
     def start(self):
         t = threading.Thread(target=self.update, name=self.name, args=())
@@ -226,14 +230,27 @@ class ThreadedVideoStream:
         return self
 
     def update(self):
+        """The core method that constantly reads frames from the camera."""
         while not self.stopped:
-            (self.grabbed, self.frame) = self.stream.read()
+            grab_start_time = time.time()
+            (grabbed, frame) = self.stream.read()
+            
+            if grabbed:
+                self.frame = frame
+                self.grabbed = True
+                # --- LATENCY CALCULATION ---
+                # Calculate the time it took to grab the frame and update the latency attribute.
+                self.latency_ms = (time.time() - grab_start_time) * 1000
+                self.last_grab_time = time.time()
+
         self.stream.release()
 
     def read(self):
+        """Returns the most recent frame."""
         return self.frame
 
     def stop(self):
+        """Signals the thread to stop."""
         self.stopped = True
 
     def set(self, propId, value):
@@ -301,7 +318,6 @@ def passive_monitoring(cap):
         time.sleep(1 / FPS_LOW)
         
     logging.info("[Passive] Passive monitoring finished.")
-    # IMPORTANT: cap.release() is no longer called here
     return triggered
 
 def active_analysis(cap, model, class_names, window_name):
@@ -348,6 +364,10 @@ def active_analysis(cap, model, class_names, window_name):
 
         analysis_duration, start_time_analysis = 30, time.time()
         prev_frame_time, new_frame_time = 0, 0
+        
+        # --- PERFORMANCE LOGGING SETUP ---
+        last_perf_log_time = time.time()
+        perf_log_interval = 10 # Log performance every 10 seconds
 
         while time.time() - start_time_analysis < analysis_duration:
             frame = cap.read()
@@ -355,6 +375,8 @@ def active_analysis(cap, model, class_names, window_name):
                 logging.warning("[Active] Frame from camera was None, skipping.")
                 time.sleep(0.01) # Short pause to avoid CPU spinning
                 continue
+            
+            capture_latency = cap.latency_ms
 
             # =========================================================================
             #  1. Inference and creation of a COMPLETE detection list
@@ -419,15 +441,18 @@ def active_analysis(cap, model, class_names, window_name):
                     elif detected_cat_type == 'white': handle_intruder_cat()
             
             # =========================================================================
-            #  3. Display ALL detected objects in the debug window
+            #  3. Display and Logging
             # =========================================================================
             annotated_frame = frame.copy()
             new_frame_time = time.time()
             fps = 1 / (new_frame_time - prev_frame_time) if prev_frame_time > 0 else 0
             prev_frame_time = new_frame_time
 
-            # This check ensures that cv2.imshow is only called
-            # if the window was actually created in the main loop.
+            # --- PERIODIC PERFORMANCE LOGGING ---
+            if (new_frame_time - last_perf_log_time) > perf_log_interval:
+                log_daily_event(f"[Performance] FPS: {int(fps)}, Capture Latency: {capture_latency:.2f} ms")
+                last_perf_log_time = new_frame_time
+
             if SHOW_LIVE_DEBUG_WINDOW:
                 if all_detections:
                     for det in all_detections:
@@ -437,8 +462,10 @@ def active_analysis(cap, model, class_names, window_name):
                         label = f"{class_names[cls_id]}: {conf:.2f}" if cls_id < len(class_names) else "Unknown"
                         cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
                         cv2.putText(annotated_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
-                cv2.putText(annotated_frame, f"FPS: {int(fps)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                # Use the passed window name
+                
+                cv2.putText(annotated_frame, f"FPS: {int(fps)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(annotated_frame, f"Capture Latency: {capture_latency:.2f} ms", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
                 cv2.imshow(window_name, annotated_frame)
                 if cv2.waitKey(1) & 0xFF == ord('q'): logging.info("Live view terminated by user."); break
             
@@ -454,7 +481,6 @@ def active_analysis(cap, model, class_names, window_name):
             for frame_to_write in frames_to_write:
                 out.write(frame_to_write)
             logging.info("Video file successfully written.")
-        # IMPORTANT: cv2.destroyAllWindows() is no longer called here
         if out: 
             out.release()
         logging.info("[Active] Active analysis finished.")
@@ -647,12 +673,10 @@ def main():
                     
                     window_name = f"YOLO Live Detection ({YOLO_MODEL_PATH})"
                     
-                    # It is checked here whether the window should be displayed according to the final setting.
                     if SHOW_LIVE_DEBUG_WINDOW:
                         cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
                     
                     try:
-                        # The analysis is always performed, but the window is only displayed if SHOW_LIVE_DEBUG_WINDOW is true.
                         detected_cat_type = active_analysis(cap, model_for_inference, class_names, window_name)
                         
                         if detected_cat_type == 'white':
@@ -661,7 +685,6 @@ def main():
                             logging.info("Timer for intruder expired. Turning off lights.")
                             philips_hue_control(False)
                     finally:
-                        # The window is only destroyed if it was previously created.
                         if SHOW_LIVE_DEBUG_WINDOW:
                             cv2.destroyWindow(window_name)
 
@@ -675,7 +698,6 @@ def main():
     finally:
         if cap:
             cap.stop()
-        # Close all windows safely at the end
         cv2.destroyAllWindows()
         logging.info("Resources released. Program terminated.")
 
