@@ -159,7 +159,6 @@ python TheCatBouncer.py --device cuda:0
 
 | Flag                                 | Description                       | Default      |
 | ------------------------------------ | --------------------------------- | ------------ |
-| `--config PATH`                      | Path to configuration file        | `config.ini` |
 | `--live-preview / --no-live-preview` | Show/hide OpenCV window           | From config  |
 | `--device {cpu,cuda:0,gpu}`          | Force inference device            | Auto‑detect  |
 | `--debug`                            | Verbose logging & visual overlays | Off          |
