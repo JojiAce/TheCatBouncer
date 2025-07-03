@@ -43,7 +43,7 @@ TheCatBouncer is a vision‑based, two‑phase monitoring system that **recognis
 | **Disk‑space watchdog**         | Continuously monitors free space and purges the oldest videos / logs when the threshold is breached                                 |
 | **CLI overrides & threaded I/O** | Command‑line flags for live preview & inference device – plus a threaded video stream for <20 ms capture latency                    |
 | **Comprehensive logging**       | Multi‑level logging: daily logs, system logs, per‑event YOLO detections with frame snapshots & bounding‑box coordinates              |
-| **Live Debug Window**           | For Quick Debugging the Active Phase + FPS counter of the actual prozest frames by the Detection Model in the right upper corner          |
+| **Live Debug Window**           | For Quick Debugging the Active Phase + FPS counter of the actual prozest frames by the Detection Model in the left upper corner          |
 | **Cross‑platform**              | Runs on Windows, macOS & Linux; works with any webcam                                                                           |
 | **Fully configurable**          | Single config.ini controls everything – no code changes required                                                                    |
 
