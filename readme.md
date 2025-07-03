@@ -109,35 +109,60 @@ $ mkdir -p cat_scare_sound
 Copy the template and fill in **your** values:
 
 ```bash
-cp config.sample.ini    config.ini
+cp config.sample.ini config.ini
 ```
 
 ```ini
-[Zeitsteuerung]
-start_zeit = 01:00   # Monitoring starts 1 AM
-end_zeit   = 07:00   # Monitoring ends 7 AM
+[TimeManagement]
+# Monitoring schedule (24‑hour format)
+start_time            = 18:00   # e.g., 18:00
+end_time              = 07:00   # e.g., 07:00
+data_management_time  = 07:10   # Daily maintenance window start
 
 [PhilipsHue]
-bridge_ip = YOUR_BRIDGE_IP_HEAR
-app_key   = YOUR_APP_KEY_HERE
-licht_ids = YOUR_LIGHTS_IDS_HEAR
+bridge_ip             = YOUR_BRIDGE_IP_HERE
+app_key               = YOUR_APP_KEY_HERE
+light_ids             = ID1,ID2,ID3   # Comma‑separated Philips Hue light IDs
 
-[Kamera]
-kamera_index      = 0
-niedrige_aufloesung = 640,480
-hohe_aufloesung     = 1920,1080
-fps_niedrig = 10
-fps_hoch    = 30
+[Camera]
+camera_index          = 0
+low_resolution        = 640,480   # Width,Height
+high_resolution       = 1920,1080 # Width,Height
+fps_low               = 5
+fps_high              = 30
 
-[Bilderkennung]
-yolo_modell_pfad         = models/yolov11n.pt
-katzen_klassen_id        = 15
-katzen_sicherheit_schwelle = 0.8
+[Trigger]
+brightness_threshold       = 220    # 0–255
+brightness_pixel_percentage = 0.01   # Fraction of pixels (e.g., 0.01 = 1%)
 
-[Farbanalyse]
-untere_schwarz_hsv = 0,0,0
-obere_schwarz_hsv  = 180,255,50
-schwarz_pixel_schwelle = 0.5
+[Paths]
+base_storage_path     = CatDetectorData     # Relative to script directory
+sound_directory       = cat_scare_sound     # Path for scare sounds
+
+[NAS]
+nas_ip                = YOUR_NAS_IP_HERE
+nas_user              = YOUR_NAS_USERNAME
+nas_destination_path  = /path/to/backup/folder
+nas_windows_share     = YOUR_WINDOWS_SHARE_NAME
+
+[ImageRecognition]
+yolo_model_path            = yolo11_openvino_model_paths/yolo11s_openvino_model
+inference_device           = gpu      # cpu, gpu, or cuda:0
+cat_class_id               = 15       # Class ID for "cat"
+cat_confidence_threshold   = 0.8      # 0.0–1.0
+
+[ColorAnalysis]
+lower_black_hsv            = 0,0,0   # H,S,V for detecting black
+upper_black_hsv            = 180,255,60
+black_pixel_threshold      = 0.5      # Fraction of pixels
+
+[Actions]
+intruder_light_minutes     = 4        # Minutes to keep lights on
+show_live_window           = true     # true/false for live debug window
+
+[StorageManagement]
+min_free_space_gb          = 10       # Minimum free disk space in GB
+max_file_age_days          = 2        # Delete files older than this
 ```
 
 
