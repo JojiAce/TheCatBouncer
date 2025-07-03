@@ -200,19 +200,17 @@ TheCatBouncer/
 ├── cat_scare_sound/            # Your audio deterrents (*.wav / *.mp3)
 ├── CatDetectorData/            # Data for cat detection (automatically created)
 │   ├── Cat_detection_information_debugging/ # Debugging information for cat detection
-│   ├── Cat_detection_information_YOLOv11_debugging/ # Debugging information for YOLOv11 cat detection
-│   ├── Systemprotokolle/       # System logs
-│   ├── Tagesprotokolle/        # Daily logs
-│   └── VideoAufnahmen_Debug/   # Debug video recordings
+│   ├── SystemLogs/       # System logs
+│   ├── DailyLogs/        # Daily logs
+│   └── VideoRecordings_Debug/   # Debug video recordings
 ├── HelpingProgramms/           # Tools for various tasks
 │   └── philips_hue_setup_tool/ # Tool for Philips Hue setup
-├── models/                     # YOLO weights (.pt) or OpenVINO (.xml+.bin) - as referenced in config.ini
 ├── yolo11_openvino_model_paths/ # OpenVINO model paths
-│   ├── yolo11l_openvino_model    # This one is for large openvino model
-│   └── ...                       # One folder for each model size  (if you want)
-├── yolo11_pt_format_model_paths/ # PyTorch format model paths
-│   ├── yolo11m.pt                # This one is for the m pt model
+│   ├── yolo11l_openvino_model/    # This one is for large openvino model
 │   └── ...                       # One folder for each model size (if you want)
+├── yolo11_pt_format_model_paths/ # PyTorch format model paths
+│   ├── yolo11m.pt                # This one is for the medium pt model
+│   └── ...                       # Each model size is in this one folder (if you want)
 ├── backups/                    # NAS snapshots (optional)
 ├── TheCatBouncer_sample.py     # Main entry‑point (sample script)
 ├── config.sample.ini           # Template config – **commit me**
