@@ -2,7 +2,7 @@
 
 > **AI‑powered pet access control** – let your own cat in, keep unwelcome felines out.
 
-    
+
 
 ---
 
@@ -30,11 +30,12 @@ TheCatBouncer is a vision‑based, two‑phase monitoring system that **recognis
 
 | Category                        | Details                                                                                                                             |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **High‑accuracy cat detection** | YOLOv11/yolo11l_openvino models (user‑selectable) with automatic fallback CPU → CUDA → OpenVINO                                     |
+| **High‑accuracy cat detection** | YOLO11 and the equivalent openvino models are natively supported (testet on)                                     |
+| **Smart hardware backend picker** |Automatically selects the best available backend. Example: If GPU is chosen, it uses CUDA if available, otherwise falls back to OpenVINO GPU/iGPU, or CPU if no GPU is detected.                                  |
 | **Owner vs. intruder logic**    | Simple colour‑histogram analysis lets you whitelist your cat with just a few HSV ranges                                             |
 | **Two‑phase efficiency**        | Low‑res passive monitoring → High‑res active analysis when motion/light is detected                                                 |
 | **Smart‑home integration**      | Native Philips Hue support (lights on/off, colour changes, flash patterns)                                                          |
-| **Automatic deterrents**        | Plays custom scare sounds (.wav / .mp3) + light show for unknown cats (pick randome on if more than one file is in the folder)      |
+| **Automatic deterrents**        | Plays custom scare sounds (.wav / .mp3) + activate lights for unknown cats (pick randome on if more than one file is in the folder)      |
 | **Scheduled operation**         | Active hours / quiet hours & daily maintenance cron                                                                                 |
 | **Configurable maintenance window** | Backups & storage cleanup run **once per day at a user‑defined **`` after the main loop, ensuring great efficiency                  |
 | **Robust NAS backup**           | OS‑aware snapshots via rsync** (Linux/macOS)** or robocopy** (Windows)** with placeholder detection to prevent misconfigurations      |
@@ -42,7 +43,8 @@ TheCatBouncer is a vision‑based, two‑phase monitoring system that **recognis
 | **Disk‑space watchdog**         | Continuously monitors free space and purges the oldest videos / logs when the threshold is breached                                 |
 | **CLI overrides & threaded I/O** | Command‑line flags for live preview & inference device – plus a threaded video stream for <20 ms capture latency                    |
 | **Comprehensive logging**       | Multi‑level logging: daily logs, system logs, per‑event YOLO detections with frame snapshots & bounding‑box coordinates              |
-| **Cross‑platform**              | Runs on Windows, macOS & Linux; works with any UVC webcam                                                                           |
+| **Live Debug Window**           | For Quick Debugging the Active Phase + FPS counter of the actual Prozest frames by the DEtection Model in the right upper corner.          |
+| **Cross‑platform**              | Runs on Windows, macOS & Linux; works with any webcam                                                                           |
 | **Fully configurable**          | Single config.ini controls everything – no code changes required                                                                    |
 
 ---
@@ -96,8 +98,8 @@ $ cd TheCatBouncer
 $ conda env create -f environment.yml
 $ conda activate catbouncer-env
 
-# 3. Add your scare sounds
-$ mkdir -p cat_scare_sound && cp ~/Downloads/bark.mp3 cat_scare_sound/
+# 3. Create your scare sounds Folder (mp3 and wav are supported audio formats)
+$ mkdir -p cat_scare_sound
 ```
 
 ---
@@ -138,7 +140,7 @@ obere_schwarz_hsv  = 180,255,50
 schwarz_pixel_schwelle = 0.5
 ```
 
-> **Tip :** Calibrate colour ranges with the built‑in live debug window (`--live-preview`).
+
 
 ---
 
