@@ -33,7 +33,7 @@ TheCatBouncer is a vision‑based, two‑phase monitoring system that **recognis
 | **High‑accuracy cat detection** | YOLO11 and the equivalent openvino models are natively supported (testet on)                                     |
 | **Smart hardware backend picker** |Automatically selects the best available backend. Example: If GPU is chosen, it uses CUDA if available, otherwise falls back to OpenVINO GPU/iGPU, or CPU if no GPU is detected.                                  |
 | **Owner vs. intruder logic**    | Simple colour‑histogram analysis lets you whitelist your cat with just a few HSV ranges                                             |
-| **Two‑phase efficiency**        | Low‑res passive monitoring → High‑res active analysis when motion/light is detected                                                 |
+| **Two‑phase efficiency**        | Low‑res passive monitoring → High‑res active analysis when bright light is detected                                                 |
 | **Smart‑home integration**      | Native Philips Hue support (lights on/off, colour changes, flash patterns)                                                          |
 | **Automatic deterrents**        | Plays custom scare sounds (.wav / .mp3) + activate lights for unknown cats (pick randome on if more than one file is in the folder)      |
 | **Scheduled operation**         | Active hours / quiet hours & daily maintenance cron                                                                                 |
