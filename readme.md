@@ -112,7 +112,7 @@ cp config.sample.ini config.ini
 
 ```ini
 [Zeitsteuerung]
-start_zeit = 01:00   # Monitoring starts 6 PM
+start_zeit = 01:00   # Monitoring starts 1 AM
 end_zeit   = 07:00   # Monitoring ends 7 AM
 
 [PhilipsHue]
