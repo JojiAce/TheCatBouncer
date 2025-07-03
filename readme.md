@@ -75,7 +75,7 @@ flowchart TD
 
 ### Hardware
 
-- USB / IP webcam (720p+ recommended)
+- webcam (720p+ recommended)
 - **Optional:** Philips Hue bridge + lights
 - **Optional:** off-site backups to a NAS (via SMB on Windows or SSH/SCP on Linux/macOS)
 
