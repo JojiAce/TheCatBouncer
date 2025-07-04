@@ -221,7 +221,7 @@ TheCatBouncer/
 
 ## Roadmap
 
--Not really Sure yet
+- Fixing poor performance caused by the current pipeline bottleneck. 
 
 ---
 
