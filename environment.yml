@@ -26,5 +26,5 @@ dependencies:
   - pip
   - pip:
     - ultralytics
-    - openvino
+    - openvino-dev
     - onnx
