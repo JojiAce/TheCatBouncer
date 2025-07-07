@@ -14,13 +14,14 @@ dependencies:
   - requests
   - pygame
   - psutil
-  - yaml
+  - pyyaml
 
   # PyTorch dependencies (required for all platforms)
   - pytorch
   - torchvision
   - torchaudio
-  - cpuonly
+  - cudatoolkit  #NVIDA GPU SUPPORT
+   #   - pytorch-rocm #AMD GPU SUPPORT
 
   # Pip-installed packages
   - pip
