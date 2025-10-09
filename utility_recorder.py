@@ -1,10 +1,10 @@
-import cv2
-import time
 import logging
 from pathlib import Path
 import datetime
 import random
-import os
+import time
+
+import cv2
 
 
 # Pygame wird für die Audio-Wiedergabe benötigt.

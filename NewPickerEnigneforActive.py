@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import List
 
-# Configure logging
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -75,6 +75,7 @@ def get_model_paths(
 
     model_paths: List[Path] = []
 
+    search_base: Path
     if folder_layout == 'nested':
         # Verschachtelte Struktur mit Hauptordner, Generation, Size und Engine
         gen_dir = base_path / model_generation
@@ -89,6 +90,7 @@ def get_model_paths(
                 "Check 'model_generation', 'model_size' and 'engine'."
             )
 
+        search_base = engine_dir
         # Suche alle Dateien mit den passenden Endungen
         for ext in extensions:
             found = list(engine_dir.glob(f"*.{ext}"))
@@ -98,6 +100,7 @@ def get_model_paths(
     elif folder_layout == 'flat':
         # Flache Struktur: alle Modelle direkt im Hauptordner
         logger.debug(f"Suche flach im Hauptordner: {base_path}")
+        search_base = base_path
         for ext in extensions:
             found = list(base_path.glob(f"*.{ext}"))
             logger.info(f"{len(found)} Dateien mit Endung '.{ext}' gefunden in {base_path}")
@@ -110,7 +113,7 @@ def get_model_paths(
     if not model_paths:
         logger.error("Keine Modelldateien gefunden.")
         raise FileNotFoundError(
-            f"No model files with extensions {extensions} found under '{engine_dir if folder_layout=='nested' else base_path}'."
+            f"No model files with extensions {extensions} found under '{search_base}'."
         )
 
     # Sortierung und Rückgabe
@@ -131,7 +134,12 @@ def get_model_paths_from_config(config_path: str = 'config.ini') -> List[Path]:
     """
     # Konfigurations Datei (INI) laden
     config = configparser.ConfigParser()
-    config_path = Path(__file__).parent / 'config.ini'
+    config_path = Path(config_path)
+    if not config_path.is_absolute():
+        config_path = Path(__file__).parent / config_path
+    if not config_path.exists():
+        raise FileNotFoundError(f"Konfigurationsdatei nicht gefunden: {config_path}")
+
     config.read(config_path)
 
 
@@ -155,7 +163,8 @@ def get_model_paths_from_config(config_path: str = 'config.ini') -> List[Path]:
 
 
 # -----------------------------------------------------------------------------
-# "model_files = get_model_paths_from_config()" ist die Variable die wir im Aktiven Analysis Pipeline verwenden/aufrufen um den Pfad zu den Modelldateie/n zu erhalten.
+# "model_files = get_model_paths_from_config()" liefert die modellpfade für die
+# aktive Pipeline.
 
 if __name__ == '__main__':
     try:

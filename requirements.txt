@@ -1,0 +1,16 @@
+# Core
+numpy>=1.24
+opencv-python>=4.8
+requests>=2.31
+Pillow>=10.0
+pygame>=2.5
+
+# Optional inference backends (install the ones you need)
+onnxruntime>=1.16
+openvino-dev>=2024.0
+torch>=2.1
+safetensors>=0.4
+coremltools>=7.0
+
+# Optional LLM based colour analysis
+ollama>=0.1.6

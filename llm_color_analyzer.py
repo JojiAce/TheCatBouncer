@@ -1,7 +1,11 @@
-import ollama
 import base64
 from pathlib import Path
 import logging
+
+try:
+    import ollama
+except ImportError:
+    ollama = None
 
 # Logging so konfigurieren, dass es mit dem Hauptskript übereinstimmt
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
@@ -27,6 +31,10 @@ def analyze_color_with_llm(event_folder_path: str, llm_config: dict) -> bool:
     Returns:
         bool: True, wenn das LLM mit "yes" antwortet, sonst False.
     """
+    if ollama is None:
+        logger.error("Ollama-Bibliothek nicht installiert. LLM-Farbanalyse wird übersprungen.")
+        return False
+
     logger.info(f"Starte LLM-Farbanalyse für Ereignis-Ordner: {event_folder_path}")
     event_folder = Path(event_folder_path)
     image_path = event_folder / 'frame.jpg'
@@ -73,5 +81,11 @@ def analyze_color_with_llm(event_folder_path: str, llm_config: dict) -> bool:
 
     except Exception as e:
         logger.error(f"Fehler bei der Kommunikation mit dem Ollama-Server unter {host_url}: {e}")
-        logger.error(f"Stellen Sie sicher, dass Ollama läuft und das Modell '{model_name}' heruntergeladen ist (z.B. mit 'ollama run {model_name}').")
+        logger.error(
+            "Stellen Sie sicher, dass Ollama läuft und das Modell '%s' heruntergeladen ist "
+            "(z.B. mit 'ollama run %s').",
+            model_name,
+            model_name,
+        )
         return False
+

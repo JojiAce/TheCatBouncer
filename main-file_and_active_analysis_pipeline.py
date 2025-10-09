@@ -124,7 +124,7 @@ def postprocess_proc(result_q, display_q, log_q, stop_event, success_event, resu
     def draw_boxes_and_stats(img, dets, infer_ms):
         frame = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         if dets and isinstance(dets, list) and dets[0] is not None:
-             for *box, conf, cls_id in dets[0]:
+            for *box, conf, cls_id in dets[0]:
                 if conf >= 0.5:
                     x1, y1, x2, y2 = box
                     label = f"{class_names[int(cls_id)]}: {conf:.2f}"
@@ -191,7 +191,7 @@ def display_writer_proc(display_q, video_path, show_window, display_res, fps, st
             if show_window:
                 cv2.imshow('Active Analysis', frame)
                 if cv2.waitKey(1) & 0xFF == ord(exit_key):
-                    stop_evt.set()
+                    stop_event.set()
                     break
     except mp.queues.Empty:
         pass
@@ -235,8 +235,7 @@ def run_active_analysis(config, inference_engine, class_names) -> str | None:
     Startet die Pipeline und gibt bei Erfolg den Pfad zum Ereignis-Ordner zurück.
     """
     CAMERA_SRC = config.get('Input', 'camera_src', fallback='0')
-    HIGH_W, HIGH_H = map(int, config.get('Active', 'high_resolution').split(','))
-    ACTIVE_RES = (HIGH_W, HIGH_H)
+    ACTIVE_RES = tuple(int(value.strip()) for value in config.get('Active', 'high_resolution').split(','))
     FPS_HIGH = config.getint('Active', 'fps_high')
     ACTIVE_TIMEOUT_SEC = config.getint('Active', 'timeout_sec', fallback=60)
     CPU_WORKERS = config.getint('Backend', 'cpu_workers', fallback=1)
@@ -333,6 +332,8 @@ if __name__ == '__main__':
         exit()
     config.read(config_path)
 
+    configured_light_ids = []
+
     try:
         # --- EINMALIGE INITIALISIERUNG ---
         
@@ -351,6 +352,7 @@ if __name__ == '__main__':
         # 2. Hue Controller initialisieren
         hue_config = dict(config.items('PhilipsHue'))
         hue_controller = HueController(hue_config.get('bridge_ip'), hue_config.get('app_key'))
+        configured_light_ids = [lid.strip() for lid in hue_config.get('light_ids', '').split(',') if lid.strip()]
         
         # 3. Notifier initialisieren
         notification_config = dict(config.items('Notifications'))
@@ -404,7 +406,7 @@ if __name__ == '__main__':
                 # --- PHASE 2: AKTIVE ANALYSE ---
                 if hue_controller.is_active:
                     hue_controller.set_lights_on(
-                        light_ids=hue_config.get('light_ids', '').split(','),
+                        light_ids=configured_light_ids,
                         brightness=int(hue_config.get('brightness', 254)),
                         saturation=int(hue_config.get('saturation', 0)),
                         hue=int(hue_config.get('hue', 14910))
@@ -438,7 +440,7 @@ if __name__ == '__main__':
                         if is_cat_black:
                             logger.info("VOLLER ERFOLG! Zielobjekt (schwarze Katze) gefunden.")
                             if hue_controller.is_active:
-                                hue_controller.set_lights_off(hue_config.get('light_ids', '').split(','))
+                                hue_controller.set_lights_off(configured_light_ids)
                             logger.info("Kehre nach Erfolg zur passiven Analyse zurück...")
                             time.sleep(10)
                             continue
@@ -461,7 +463,7 @@ if __name__ == '__main__':
                             )
                             
                             if hue_controller.is_active:
-                                hue_controller.set_lights_off(hue_config.get('light_ids', '').split(','))
+                                hue_controller.set_lights_off(configured_light_ids)
                             logger.info("Intruder-Protokoll beendet. Kehre zur passiven Analyse zurück.")
                             time.sleep(5)
                             continue
@@ -470,7 +472,7 @@ if __name__ == '__main__':
                 else:
                     logger.info("Aktive Analyse nicht erfolgreich (Timeout).")
                     if hue_controller.is_active:
-                        hue_controller.set_lights_off(hue_config.get('light_ids', '').split(','))
+                        hue_controller.set_lights_off(configured_light_ids)
                     logger.info("Kehre zur passiven Analyse zurück.")
                     time.sleep(5)
                     continue
@@ -485,5 +487,5 @@ if __name__ == '__main__':
     finally:
         if 'hue_controller' in locals() and hue_controller.is_active:
             logger.info("Schalte Lichter beim Herunterfahren aus...")
-            hue_controller.set_lights_off(hue_config.get('light_ids', '').split(','))
+            hue_controller.set_lights_off(configured_light_ids)
         logger.info("Anwendung wird heruntergefahren.")
