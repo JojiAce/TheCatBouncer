@@ -105,7 +105,11 @@ class OpenVinoEngine:
         # Extrahiere Klassennamen, falls in Metadaten vorhanden
         self.class_names = []
         if 'names' in model.get_rt_info():
-             self.class_names = model.get_rt_info()["names"]
+            names = model.get_rt_info()["names"]
+            if isinstance(names, dict):
+                self.class_names = list(names.values())
+            elif isinstance(names, (list, tuple)):
+                self.class_names = list(names)
 
         self.compiled_model = core.compile_model(model=model, device_name=device.upper())
         self.input_layer = self.compiled_model.input(0)
@@ -189,7 +193,7 @@ class CoreMLEngine:
             # Annahme: Der Output, der die Klassen enthält, hat einen 'stringVector'
             output_description = self.model.get_spec().description.output[0]
             if output_description.type.HasField('stringVectorType'):
-                 self.class_names = output_description.type.stringVectorType.vector
+                self.class_names = list(output_description.type.stringVectorType.vector)
         except Exception as e:
             logger.warning(f"Konnte Klassennamen aus CoreML-Modell nicht extrahieren: {e}")
 
