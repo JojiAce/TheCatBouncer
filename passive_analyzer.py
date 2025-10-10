@@ -4,6 +4,8 @@ import logging
 from typing import Callable
 import numpy as np
 
+from camera_utils import resolve_camera_source
+
 # Logging so konfigurieren, dass es mit dem Hauptskript übereinstimmt
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -51,7 +53,7 @@ def run_passive_analysis(
     darkness_thresh = float(trigger_config['darkness_threshold'])
     trigger_frame_count = int(trigger_config['trigger_frame_count'])
 
-    cap = cv2.VideoCapture(int(camera_src))
+    cap = cv2.VideoCapture(resolve_camera_source(camera_src))
     if not cap.isOpened():
         logger.error(f"[Passive] Kann Kameraquelle nicht öffnen: {camera_src}")
         return False
