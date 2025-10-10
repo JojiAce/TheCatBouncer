@@ -19,6 +19,7 @@ from hue_controller import HueController
 from utility_recorder import handle_intruder_event
 from data_manager import run_data_management
 from notifier import Notifier
+from camera_utils import resolve_camera_source
 
 # Logging konfigurieren
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
@@ -47,7 +48,7 @@ def is_within_schedule(start_str: str, end_str: str) -> bool:
 def capture_proc(capture_q, src, res, fps, stop_event, error_q):
     """Liest Frames von der Kamera und legt sie in eine Queue."""
     try:
-        cap = cv2.VideoCapture(int(src))
+        cap = cv2.VideoCapture(resolve_camera_source(src))
         if not cap.isOpened():
             raise IOError(f"Kann Kameraquelle nicht öffnen: {src}")
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, res[0])
@@ -80,8 +81,9 @@ def preprocess_proc(capture_q, preprocess_q, stop_event, target_res, error_q):
         while not stop_event.is_set():
             frame = capture_q.get(timeout=5)
             img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            if img.shape[:2] != target_res:
-                img = cv2.resize(img, target_res, interpolation=cv2.INTER_AREA)
+            target_width, target_height = target_res
+            if img.shape[1] != target_width or img.shape[0] != target_height:
+                img = cv2.resize(img, (target_width, target_height), interpolation=cv2.INTER_AREA)
             preprocess_q.put(img)
     except mp.queues.Empty:
         pass
@@ -433,7 +435,9 @@ if __name__ == '__main__':
                             llm_config = {
                                 'host': config.get('ColorAnalysis', 'ollama_host', fallback='http://localhost:11434'),
                                 'model': config.get('ColorAnalysis', 'ollama_model'),
-                                'prompt': config.get('ColorAnalysis', 'ollama_prompt')
+                                'prompt': config.get('ColorAnalysis', 'ollama_prompt'),
+                                'temperature': config.getfloat('ColorAnalysis', 'ollama_temperature', fallback=0.0),
+                                'timeout': config.getfloat('ColorAnalysis', 'ollama_timeout', fallback=30.0),
                             }
                             is_cat_black = analyze_color_with_llm(event_path, llm_config)
                         
