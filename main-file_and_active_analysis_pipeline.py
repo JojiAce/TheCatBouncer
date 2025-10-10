@@ -435,7 +435,9 @@ if __name__ == '__main__':
                             llm_config = {
                                 'host': config.get('ColorAnalysis', 'ollama_host', fallback='http://localhost:11434'),
                                 'model': config.get('ColorAnalysis', 'ollama_model'),
-                                'prompt': config.get('ColorAnalysis', 'ollama_prompt')
+                                'prompt': config.get('ColorAnalysis', 'ollama_prompt'),
+                                'temperature': config.getfloat('ColorAnalysis', 'ollama_temperature', fallback=0.0),
+                                'timeout': config.getfloat('ColorAnalysis', 'ollama_timeout', fallback=30.0),
                             }
                             is_cat_black = analyze_color_with_llm(event_path, llm_config)
                         

@@ -88,6 +88,7 @@ The main loop will:
 - Set `[Debug] window = false` if you run the pipeline on a headless system.
 - If you disable Philips Hue or notifications, leave the related sections blank – the modules degrade gracefully.
 - When using the LLM-based colour analysis ensure `ollama` and the configured model are available locally; otherwise the HSV method is recommended.
+- The revamped `llm_color_analyzer` can also talk to an Ollama server via pure HTTP, which is handy on minimalist deployments where installing the Python package is not possible. Use `ollama_temperature` and `ollama_timeout` in the config to fine tune requests.
 
 ## Development Notes
 
