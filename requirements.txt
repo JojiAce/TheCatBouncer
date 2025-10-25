@@ -1,0 +1,40 @@
+# TheCatBouncer Requirements
+
+# Core dependencies
+numpy>=1.21.0
+opencv-python>=4.5.0
+configparser>=5.0.0
+requests>=2.25.0
+Pillow>=8.0.0
+
+# Inference backends
+onnxruntime>=1.14.0
+openvino-dev>=2023.0.0
+torch>=1.12.0
+safetensors>=0.3.0
+coremltools>=6.0.0
+
+# Audio
+pygame>=2.0.0
+
+# Smart home
+phue>=1.1
+
+# Notifications
+pyTelegramBotAPI>=4.0.0
+
+# Performance and utilities
+psutil>=5.8.0
+typing-extensions>=3.10.0
+GPUtil>=1.4.0
+
+# Testing
+pytest>=7.0.0
+pytest-mock>=3.6.0
+
+# Type checking
+mypy>=0.991
+
+# Code formatting
+black>=22.0.0
+ruff>=0.0.249
