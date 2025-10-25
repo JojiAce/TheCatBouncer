@@ -4,6 +4,8 @@ import logging
 from typing import Callable
 import numpy as np
 
+from camera_utils import resolve_camera_source
+
 # Logging so konfigurieren, dass es mit dem Hauptskript übereinstimmt
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -12,8 +14,8 @@ def brightness_check_strategy(frame: np.ndarray, config: dict) -> bool:
     """
     Standard-Strategie: Prüft, ob ein ausreichender Prozentsatz der Pixel hell genug ist.
     """
-    brightness_threshold = config['brightness_threshold']
-    pixel_percentage = config['brightness_pixel_percentage']
+    brightness_threshold = float(config['brightness_threshold'])
+    pixel_percentage = float(config['brightness_pixel_percentage'])
 
     # Konvertiere zu Graustufen für Helligkeitsanalyse
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -45,13 +47,13 @@ def run_passive_analysis(
     Returns:
         bool: True, wenn der Trigger ausgelöst wurde.
     """
-    res = tuple(map(int, camera_config['low_resolution'].split(',')))
+    res = tuple(int(value.strip()) for value in camera_config['low_resolution'].split(','))
     fps = int(camera_config['fps_low'])
-    
-    darkness_thresh = trigger_config['darkness_threshold']
-    trigger_frame_count = trigger_config['trigger_frame_count']
 
-    cap = cv2.VideoCapture(int(camera_src))
+    darkness_thresh = float(trigger_config['darkness_threshold'])
+    trigger_frame_count = int(trigger_config['trigger_frame_count'])
+
+    cap = cv2.VideoCapture(resolve_camera_source(camera_src))
     if not cap.isOpened():
         logger.error(f"[Passive] Kann Kameraquelle nicht öffnen: {camera_src}")
         return False

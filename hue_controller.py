@@ -87,4 +87,5 @@ class HueController:
         # Implementierung einer echten HSV->XY Konvertierung wäre hier notwendig
         # Fürs Erste verwenden wir einen Standardwert für farbiges Licht
         logger.warning("[Hue] Präzise HSV-zu-XY-Farbkonvertierung nicht implementiert. Verwende Standardwerte.")
-        return {"x": 0.4573, "y": 0.4100} # Beispielwert
+        return {"x": 0.4573, "y": 0.4100}  # Beispielwert
+

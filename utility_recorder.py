@@ -1,10 +1,12 @@
-import cv2
-import time
 import logging
 from pathlib import Path
 import datetime
 import random
-import os
+import time
+
+import cv2
+
+from camera_utils import resolve_camera_source
 
 
 # Pygame wird für die Audio-Wiedergabe benötigt.
@@ -77,7 +79,7 @@ def handle_intruder_event(
     res = tuple(map(int, camera_config['high_resolution'].split(',')))
     fps = int(camera_config['fps_high'])
 
-    cap = cv2.VideoCapture(int(camera_src))
+    cap = cv2.VideoCapture(resolve_camera_source(camera_src))
     if not cap.isOpened():
         logger.error("[Recorder] Kann Kameraquelle für Aufnahme nicht öffnen.")
         return
