@@ -97,3 +97,10 @@ The main loop will:
 - The repository ships with a requirements file; pin versions according to your deployment environment for reproducibility.
 
 Feel free to open issues or submit pull requests if you extend the project (e.g. by adding support for other smart home systems or inference engines).
+
+## Repository Hygiene
+
+- The project-level `.gitignore` excludes generated artefacts such as `__pycache__/`, build outputs, and local data directories like `CatDetectorData/`.
+- Local interpreter selections stored in `.python-version` stay untracked so contributors can use Pyenv without polluting the repository.
+- Keep dependency manifests (`requirements.txt`, `setup.py`) ending with a newline to ensure packaging tools read the full metadata.
+
