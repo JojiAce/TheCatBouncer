@@ -133,8 +133,17 @@ class PassiveMonitor(PassiveMonitor):
 
         try:
             while not self.triggered and not self._check_idle_timeout():
+                if self.camera_manager is None:
+                    self.logger.info("Camera manager cleared, stopping monitoring loop")
+                    break
+
                 # Read a frame from the camera
-                success, frame = self.camera_manager.read_frame()
+                camera_manager = self.camera_manager
+                if camera_manager is None:
+                    self.logger.info("Camera manager cleared before frame read, stopping monitoring loop")
+                    break
+
+                success, frame = camera_manager.read_frame()
                 
                 if not success or frame is None:
                     self.logger.warning("Failed to read frame from camera, retrying...")
