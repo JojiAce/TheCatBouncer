@@ -93,9 +93,13 @@ def preprocess_proc(capture_q, preprocess_q, stop_event, target_res, error_q):
         logger.info("Preprocess-Prozess beendet.")
 
 
-def inference_proc(preprocess_q, result_q, stop_event, engine, error_q):
-    """Führt Inferenz mit der VORGELADENEN Engine aus."""
+def inference_proc(preprocess_q, result_q, stop_event, engine_config, error_q):
+    """Führt Inferenz aus und erstellt die Engine im jeweiligen Prozess."""
+    engine = None
     try:
+        engine, _ = get_inference_engine(engine_config)
+        logger.info("Inference-Prozess: Engine initialisiert.")
+
         while not stop_event.is_set():
             img = preprocess_q.get(timeout=5)
             t0 = time.time()
@@ -104,7 +108,7 @@ def inference_proc(preprocess_q, result_q, stop_event, engine, error_q):
             result_q.put((img, dets, infer_ms))
     except mp.queues.Empty:
         pass
-    except Exception as e:
+    except Exception:
         error_q.put(f"inference_proc: {traceback.format_exc()}")
     finally:
         logger.info("Inference-Prozess beendet.")
@@ -232,7 +236,7 @@ def logger_proc(log_q, stop_event, log_file, error_q):
 
 
 # --- HAUPT-ORCHESTRIERUNGSFUNKTIONEN ---
-def run_active_analysis(config, inference_engine, class_names) -> str | None:
+def run_active_analysis(config, engine_config, class_names) -> str | None:
     """
     Startet die Pipeline und gibt bei Erfolg den Pfad zum Ereignis-Ordner zurück.
     """
@@ -272,7 +276,7 @@ def run_active_analysis(config, inference_engine, class_names) -> str | None:
     
     workers = 1 if inference_device.lower() == 'gpu' else CPU_WORKERS
     for _ in range(workers):
-        procs.append(mp.Process(target=inference_proc, args=(pre_q, res_q, stop_evt, inference_engine, error_q)))
+        procs.append(mp.Process(target=inference_proc, args=(pre_q, res_q, stop_evt, engine_config, error_q)))
         
     procs += [
         mp.Process(target=postprocess_proc, args=(res_q, disp_q, log_q, stop_evt, success_event, result_path_q, error_q, detection_config, class_names)),
@@ -350,6 +354,8 @@ if __name__ == '__main__':
         logger.info(f"Modell erfolgreich geladen. Gefundene Klassen: {len(class_names)}")
         if not class_names:
             raise ValueError("Das geladene Modell enthält keine Klassennamen.")
+        # Engine-Instanz freigeben; die Worker-Prozesse erstellen ihre eigenen Instanzen.
+        del inference_engine_instance
 
         # 2. Hue Controller initialisieren
         hue_config = dict(config.items('PhilipsHue'))
@@ -415,7 +421,7 @@ if __name__ == '__main__':
                     )
 
                 logger.info("Trigger erkannt! Starte aktive Analyse...")
-                event_path = run_active_analysis(config, inference_engine_instance, class_names)
+                event_path = run_active_analysis(config, engine_config, class_names)
 
                 # --- PHASE 3: FARBANALYSE & AKTIONEN ---
                 if event_path:
