@@ -1,31 +1,30 @@
-name: savebounce-env
+# Conda-Umgebung für das autonome Katzen-Analyse-Projekt
+#
+# So erstellen Sie die Umgebung:
+# conda env create -f environment.yml
+#
+# So aktivieren Sie die Umgebung:
+# conda activate cat-analysis-env
+
+name: cat-analysis-env
+
 channels:
-  - conda-forge
-  - pytorch
   - defaults
+  - conda-forge
+
 dependencies:
-  # Core Python - with macOS specific package for GUI support
-  - python=3.10      # [win or linux]
-  - python.app       # [osx]
-
-  # Core packages available on all platforms
-  - opencv
-  - numpy
-  - requests
-  - pygame
-  - psutil
-  - pyyaml
-
-  # PyTorch dependencies (required for all platforms)
-  - pytorch
-  - torchvision
-  - torchaudio
-  - cudatoolkit  #NVIDA GPU SUPPORT
-   #   - pytorch-rocm #AMD GPU SUPPORT
-
-  # Pip-installed packages
+  # Kernabhängigkeiten
+  - python=3.10
   - pip
+
+  # Bibliotheken, die über Conda verfügbar sind
+  - opencv
+  - requests
+  - numpy
+
+  # Bibliotheken, die über Pip installiert werden, da sie
+  # entweder nicht auf Conda verfügbar sind oder die Pip-Version
+  # vorzuziehen ist.
   - pip:
-    - ultralytics
-    - openvino-dev
-    - onnx
+    - pygame
+    - ollama
