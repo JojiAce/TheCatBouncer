@@ -46,14 +46,9 @@ class PassiveMonitor(PassiveMonitor):
         self.trigger_frame_count = config.get('trigger_frame_count', 5)
         self.max_idle_time = config.get('max_idle_time', 3600)  # 1 hour default
         
-        # Initialize state
-        self.state = PassiveMonitorState.WAITING_FOR_DARKNESS
-        self.bright_frame_counter = 0
-        self.triggered = False
+        # Initialize state and camera
         self.camera_manager = None
-        self.start_time = time.time()
-        
-        # Initialize camera
+        self._reset_cycle_state()
         self._initialize_camera()
         
         self.logger.info(f"Passive monitor initialized with config: "
@@ -116,16 +111,39 @@ class PassiveMonitor(PassiveMonitor):
         """
         return (time.time() - self.start_time) > self.max_idle_time
     
+    def _reset_cycle_state(self):
+        """Reset monitoring state for a new detection cycle."""
+        self.state = PassiveMonitorState.WAITING_FOR_DARKNESS
+        self.bright_frame_counter = 0
+        self.triggered = False
+        self.start_time = time.time()
+
     def start_monitoring(self):
         """
         Start the passive monitoring process.
         """
+        # Prepare for a new detection cycle
+        self._reset_cycle_state()
+
+        # Ensure camera resources are available (they may have been released after previous cycle)
+        if not self.camera_manager or not self.camera_manager.is_opened():
+            self._initialize_camera()
+
         self.logger.info(f"Starting passive monitoring in state: {self.state.value}")
-        
+
         try:
             while not self.triggered and not self._check_idle_timeout():
+                if self.camera_manager is None:
+                    self.logger.info("Camera manager cleared, stopping monitoring loop")
+                    break
+
                 # Read a frame from the camera
-                success, frame = self.camera_manager.read_frame()
+                camera_manager = self.camera_manager
+                if camera_manager is None:
+                    self.logger.info("Camera manager cleared before frame read, stopping monitoring loop")
+                    break
+
+                success, frame = camera_manager.read_frame()
                 
                 if not success or frame is None:
                     self.logger.warning("Failed to read frame from camera, retrying...")
@@ -165,16 +183,22 @@ class PassiveMonitor(PassiveMonitor):
         except Exception as e:
             self.logger.error(f"Error in passive monitoring loop: {e}")
         finally:
-            self.state = PassiveMonitorState.STOPPED
-            self.stop_monitoring()
-    
-    def stop_monitoring(self):
+            if not self.triggered:
+                self.state = PassiveMonitorState.STOPPED
+            self.stop_monitoring(reset_state=False)
+
+    def stop_monitoring(self, reset_state: bool = True):
         """
         Stop the passive monitoring process.
         """
         if self.camera_manager:
             self.camera_manager.release()
             self.logger.info("Camera resources released")
+            self.camera_manager = None
+
+        if reset_state:
+            self._reset_cycle_state()
+            self.state = PassiveMonitorState.STOPPED
     
     def is_triggered(self) -> bool:
         """
