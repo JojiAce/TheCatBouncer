@@ -1,6 +1,7 @@
 """
 Color analysis system with HSV and LLM-based analysis.
 """
+import base64
 import cv2
 import numpy as np
 import json
@@ -159,15 +160,20 @@ class ColorAnalyzer(ColorAnalyzer):
                 return False
             
             # Encode the ROI image to base64 for the API request
-            _, buffer = cv2.imencode('.jpg', roi, [cv2.IMWRITE_JPEG_QUALITY, 85])
-            roi_base64 = buffer.tobytes()
+            success, buffer = cv2.imencode('.jpg', roi, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            if not success:
+                self.logger.error("Failed to encode ROI for LLM color analysis")
+                return False
+
+            roi_bytes = buffer.tobytes()
+            roi_base64 = base64.b64encode(roi_bytes).decode('ascii')
             
             # Prepare the API request
             url = f"{self.ollama_host}/api/generate"
             payload = {
                 "model": self.ollama_model,
                 "prompt": self.ollama_prompt,
-                "images": [roi_base64.decode('utf-8')],
+                "images": [roi_base64],
                 "stream": False
             }
             
