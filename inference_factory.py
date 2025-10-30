@@ -1,8 +1,10 @@
 # inference_factory.py
 
 import logging
+from importlib import import_module
+from functools import partial
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import Callable, Iterable, List, Dict, Any, Tuple
 import numpy as np
 import cv2
 import json
@@ -32,16 +34,99 @@ except ImportError:
     ct = None
     Image = None
 
-# --- Platzhalter für Modell-Architektur (für Safetensors) ---
-# WICHTIG: Diese Zeile muss für die Verwendung von .safetensors-Dateien angepasst werden.
-try:
-    # from my_yolo_model_file import MyYoloModelClass
-    MyYoloModelClass = None
-except ImportError:
-    MyYoloModelClass = None
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger(__name__)
+
+
+def _import_from_string(path: str) -> Callable:
+    """Lädt ein Objekt basierend auf einem Import-String."""
+    if not isinstance(path, str) or not path.strip():
+        raise ValueError("Ein gültiger Import-Pfad als String wird benötigt.")
+
+    normalized = path.replace(":", ".").strip()
+    module_path, _, attr = normalized.rpartition(".")
+    if not module_path:
+        raise ValueError(f"Der Import-Pfad '{path}' muss ein Modul und ein Attribut enthalten.")
+
+    try:
+        module = import_module(module_path)
+    except ImportError as exc:
+        raise ImportError(f"Kann Modul '{module_path}' nicht importieren (für '{path}').") from exc
+
+    try:
+        return getattr(module, attr)
+    except AttributeError as exc:
+        raise ImportError(f"Attribut '{attr}' wurde in Modul '{module_path}' nicht gefunden.") from exc
+
+
+def _ensure_callable(candidate: Any, description: str) -> Callable:
+    if not callable(candidate):
+        raise TypeError(f"{description} muss aufrufbar sein, erhalten: {type(candidate)!r}.")
+    return candidate
+
+
+def _parse_optional_iterable(value: Any) -> Iterable:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        return value
+    if isinstance(value, dict):
+        return value.values()
+    if isinstance(value, str):
+        try:
+            data = json.loads(value)
+        except json.JSONDecodeError:
+            logger.warning("Konnte Klassennamen nicht als JSON interpretieren. Verwende Roh-String.")
+            return [value]
+        return data if isinstance(data, (list, tuple)) else [value]
+    return [value]
+
+
+def _create_safetensors_builder(config: Dict[str, Any]) -> Callable[[], Any]:
+    """Erzeugt einen Builder für Safetensors-Modelle basierend auf der Konfiguration."""
+    builder = config.get('safetensors_model_builder') or config.get('model_builder')
+    model_class = config.get('safetensors_model_class') or config.get('model_class')
+
+    if builder:
+        if isinstance(builder, str):
+            builder_callable = _import_from_string(builder)
+        else:
+            builder_callable = builder
+        builder_callable = _ensure_callable(builder_callable, 'safetensors_model_builder')
+        return builder_callable
+
+    if model_class:
+        if isinstance(model_class, str):
+            model_class_obj = _import_from_string(model_class)
+        else:
+            model_class_obj = model_class
+        model_class_obj = _ensure_callable(model_class_obj, 'safetensors_model_class')
+
+        args = config.get('safetensors_model_args') or config.get('model_args') or ()
+        kwargs = config.get('safetensors_model_kwargs') or config.get('model_kwargs') or {}
+
+        if isinstance(args, str):
+            try:
+                args = tuple(json.loads(args))
+            except json.JSONDecodeError as exc:
+                raise ValueError("safetensors_model_args muss eine Liste oder JSON-Liste sein.") from exc
+        if isinstance(kwargs, str):
+            try:
+                kwargs = json.loads(kwargs)
+            except json.JSONDecodeError as exc:
+                raise ValueError("safetensors_model_kwargs muss ein Dict oder JSON-Dict sein.") from exc
+
+        if not isinstance(args, (list, tuple)):
+            raise TypeError("safetensors_model_args muss eine Liste oder ein Tuple sein.")
+        if not isinstance(kwargs, dict):
+            raise TypeError("safetensors_model_kwargs muss ein Dict sein.")
+
+        return partial(model_class_obj, *args, **kwargs)
+
+    raise ValueError(
+        "Für Safetensors-Modelle muss entweder 'safetensors_model_builder' oder 'safetensors_model_class'"
+        " (optional mit Args/Kwargs) in der Konfiguration angegeben werden."
+    )
 
 # =============================================================================
 #  1. WRAPPER-KLASSEN (Die "Universal-Adapter")
@@ -151,22 +236,27 @@ class PyTorchEngine:
 
 class SafetensorsEngine:
     """Wrapper für Safetensors-Modelle (.safetensors)."""
-    def __init__(self, model_path: Path, device: str):
+
+    def __init__(self, model_path: Path, device: str, *, model_builder: Callable[[], Any], names: Iterable[str] | None = None):
         logger.info(f"Lade Safetensors-Modell von: {model_path}")
         if torch is None or load_safetensors is None:
             raise ImportError("torch und safetensors müssen installiert sein.")
-        if MyYoloModelClass is None:
-            raise NotImplementedError("Keine Modell-Klasse importiert. Bitte passen Sie 'inference_factory.py' an und definieren Sie 'MyYoloModelClass'.")
+        if model_builder is None:
+            raise ValueError("Für Safetensors-Modelle muss ein 'model_builder' angegeben werden.")
 
         self.device = torch.device(device)
-        self.model = MyYoloModelClass()
-        load_safetensors(str(model_path), self.model)
-        self.model.to(self.device).eval()
-        
-        # Extrahiere Klassennamen
-        self.class_names = getattr(self.model, 'names', [])
+        model = model_builder()
+        if not hasattr(model, 'load_state_dict'):
+            raise TypeError("Der model_builder muss eine torch.nn.Module Instanz zurückgeben.")
+
+        load_safetensors(str(model_path), model)
+        self.model = model.to(self.device).eval()
+
+        inferred_names = getattr(self.model, 'names', [])
+        provided_names = list(names) if names else []
+        self.class_names = provided_names or inferred_names
         logger.info("Safetensors-Modell erfolgreich geladen.")
-        
+
     def predict(self, image: np.ndarray) -> Any:
         tensor = torch.from_numpy(image).permute(2, 0, 1).float().to(self.device)
         tensor /= 255.0
@@ -239,7 +329,27 @@ def get_inference_engine(config: Dict[str, Any]) -> Tuple[Any, List[str]]:
     elif engine_name == 'safetensor':
         path = next((p for p in model_paths if p.suffix == '.safetensors'), None)
         if not path: raise FileNotFoundError("Keine .safetensors Datei gefunden.")
-        engine_instance = SafetensorsEngine(path, device)
+
+        builder = _create_safetensors_builder(config)
+        names = list(_parse_optional_iterable(config.get('class_names')))
+
+        class_names_path = config.get('class_names_path')
+        if class_names_path and not names:
+            try:
+                with open(class_names_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    names = list(data.values())
+                elif isinstance(data, list):
+                    names = list(data)
+                else:
+                    logger.warning("class_names_path enthält ein unbekanntes Format. Ignoriere Datei.")
+            except FileNotFoundError:
+                logger.error(f"Klassennamen-Datei '{class_names_path}' wurde nicht gefunden.")
+            except json.JSONDecodeError as exc:
+                logger.error(f"Konnte Klassennamen aus '{class_names_path}' nicht parsen: {exc}")
+
+        engine_instance = SafetensorsEngine(path, device, model_builder=builder, names=names)
 
     elif engine_name == 'coreml':
         path = next((p for p in model_paths if p.suffix == '.mlmodel'), None)

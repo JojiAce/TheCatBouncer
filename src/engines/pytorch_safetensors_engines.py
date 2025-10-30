@@ -1,281 +1,209 @@
-"""
-PyTorch and SafeTensors inference engines.
-"""
+"""PyTorch and SafeTensors inference engine implementations."""
+
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
 import numpy as np
-import logging
-from typing import List, Dict, Any, Optional, Tuple
-import os
 
 from src.engines.base_engine import InferenceEngine
 
 
 class PyTorchEngine(InferenceEngine):
-    """
-    PyTorch inference engine.
-    Supports NVIDIA GPU acceleration.
-    """
-    
-    def __init__(self, model_path: str, device: str = "cpu", **kwargs):
-        """
-        Initialize the PyTorch inference engine.
-        
-        Args:
-            model_path: Path to the .pt model file
-            device: Device to run inference on ('cpu', 'cuda:0', 'cuda:1', etc.)
-            **kwargs: Additional parameters
-        """
+    """Inference engine that executes PyTorch models."""
+
+    def __init__(self, model_path: str, device: str = "cpu", **kwargs: Any) -> None:
         super().__init__(model_path, device, **kwargs)
-        
-        # Import PyTorch
+
         try:
             import torch
-        except ImportError as e:
-            raise ImportError("PyTorch is not installed. Please install with: pip install torch") from e
-        
-        self.torch = torch  # Store reference for later use
-        
-        # Map device string to PyTorch device
+        except ImportError as exc:  # pragma: no cover - guarded import
+            raise ImportError(
+                "PyTorch is not installed. Please install it with 'pip install torch'."
+            ) from exc
+
+        self._torch = torch
+
         if device.startswith("cuda") and torch.cuda.is_available():
             self.device = torch.device(device)
         else:
-            self.device = torch.device('cpu')
-        
+            self.device = torch.device("cpu")
+
         try:
-            # Load the model
             self.model = torch.load(model_path, map_location=self.device)
-            
-            # Set model to evaluation mode (important for inference)
             self.model.eval()
-            
-            # Move model to specified device
             self.model.to(self.device)
-            
-            # Extract class names from model if available (common for Ultralytics models)
-            if hasattr(self.model, 'names') and self.model.names:
-                self.class_names = self.model.names
-            elif 'names' in kwargs:
-                self.class_names = kwargs['names']
-            else:
-                self.class_names = []
-            
-            self.logger.info(f"PyTorch engine initialized with model: {model_path}")
-            self.logger.info(f"Using device: {self.device}")
-            self.logger.info(f"Model on device: {next(self.model.parameters()).device}")
-            
-        except Exception as e:
-            raise RuntimeError(f"Failed to initialize PyTorch engine with model {model_path}: {str(e)}") from e
-    
+
+            if hasattr(self.model, "names") and getattr(self.model, "names"):
+                self.class_names = list(self.model.names)
+            elif "names" in kwargs and isinstance(kwargs["names"], (list, tuple)):
+                self.class_names = list(kwargs["names"])
+
+            self.logger.info("PyTorch engine initialised for %s", model_path)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            raise RuntimeError(
+                f"Failed to initialise PyTorch engine with model {model_path}: {exc}"
+            ) from exc
+
     def predict(self, image: np.ndarray) -> List[np.ndarray]:
-        """
-        Run inference on an image using PyTorch.
-        
-        Args:
-            image: Input image as numpy array (H, W, C)
-            
-        Returns:
-            List of inference results
-        """
-        with torch.no_grad():  # Disable gradient computation for inference
-            # Convert numpy array to PyTorch tensor
-            # PyTorch expects (N, C, H, W) format
-            if len(image.shape) == 3:  # Add batch dimension
+        torch = self._torch
+
+        with torch.no_grad():
+            if image.ndim == 3:
                 image = np.expand_dims(image, axis=0)
-            
-            # Transpose from (N, H, W, C) to (N, C, H, W) if needed
-            if image.shape[-1] in [3, 1]:  # Channels are last
+
+            if image.shape[-1] in (1, 3):
                 image = np.transpose(image, (0, 3, 1, 2))
-            
-            # Convert to tensor and move to device
+
             tensor = torch.from_numpy(image).float().to(self.device)
-            
-            # Normalize if needed (common for PyTorch models)
-            # This depends on the specific model, but many expect values in [0, 1] or normalized
-            if tensor.max() > 1.0:
-                tensor = tensor / 255.0  # Normalize from [0, 255] to [0, 1]
-            
-            # Run inference
-            try:
-                results = self.model(tensor)
-                
-                # Convert results back to numpy arrays
-                if isinstance(results, torch.Tensor):
-                    # Single output
-                    return [results.cpu().numpy()]
-                elif isinstance(results, (list, tuple)):
-                    # Multiple outputs
-                    return [r.cpu().numpy() if isinstance(r, torch.Tensor) else r for r in results]
-                elif isinstance(results, dict):
-                    # Dictionary output (like in some detection models)
-                    return [v.cpu().numpy() if isinstance(v, torch.Tensor) else v for v in results.values()]
-                else:
-                    # Unknown format, try to convert to numpy
-                    return [np.array(results)]
-                    
-            except Exception as e:
-                raise RuntimeError(f"PyTorch inference failed: {str(e)}") from e
-    
-    def get_class_names(self) -> List[str]:
-        """
-        Get the class names for the model.
-        
-        Returns:
-            List of class names
-        """
-        return self.class_names
-    
-    def warm_up(self):
-        """
-        Warm up the model by running a dummy inference.
-        """
-        # Create a dummy input with a reasonable size
-        # Use model's expected input dimensions if possible, otherwise default
-        dummy_shape = (1, 3, 640, 640)  # Common for detection models
-        dummy_input = torch.randn(dummy_shape).to(self.device)
-        
+            if tensor.max().item() > 1.0:
+                tensor = tensor / 255.0
+
+            results = self.model(tensor)
+
+            if isinstance(results, torch.Tensor):
+                return [results.detach().cpu().numpy()]
+            if isinstance(results, (list, tuple)):
+                output: List[np.ndarray] = []
+                for value in results:
+                    if isinstance(value, torch.Tensor):
+                        output.append(value.detach().cpu().numpy())
+                    else:
+                        output.append(np.asarray(value))
+                return output
+            if isinstance(results, dict):
+                return [
+                    (value.detach().cpu().numpy() if isinstance(value, torch.Tensor) else np.asarray(value))
+                    for value in results.values()
+                ]
+
+            return [np.asarray(results)]
+
+    def warm_up(self) -> None:
+        torch = self._torch
+        dummy_input = torch.randn(1, 3, 640, 640, device=self.device)
+
         try:
             with torch.no_grad():
                 _ = self.model(dummy_input)
-            self.logger.info("PyTorch engine warmed up successfully")
-        except Exception as e:
-            self.logger.error(f"Failed to warm up PyTorch engine: {e}")
+            self.logger.info("PyTorch engine warm-up completed")
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.warning("PyTorch engine warm-up failed: %s", exc)
 
 
 class SafeTensorsEngine(InferenceEngine):
-    """
-    SafeTensors inference engine.
-    Safer and faster loading than PyTorch.
-    """
-    
-    def __init__(self, model_path: str, device: str = "cpu", **kwargs):
-        """
-        Initialize the SafeTensors inference engine.
-        
-        Args:
-            model_path: Path to the .safetensors model file
-            device: Device to run inference on ('cpu', 'cuda:0', 'cuda:1', etc.)
-            **kwargs: Additional parameters
-        """
+    """Inference engine for models stored in the SafeTensors format."""
+
+    def __init__(self, model_path: str, device: str = "cpu", **kwargs: Any) -> None:
         super().__init__(model_path, device, **kwargs)
-        
-        # Import required libraries
+
         try:
             import torch
             from safetensors.torch import load_file
-        except ImportError as e:
-            raise ImportError("PyTorch and safetensors are not installed. Please install with: pip install torch safetensors") from e
-        
-        self.torch = torch  # Store reference for later use
-        self.load_file = load_file  # Store reference to load function
-        
-        # Map device string to PyTorch device
+        except ImportError as exc:  # pragma: no cover - guarded import
+            raise ImportError(
+                "PyTorch and safetensors are required. Install them with 'pip install torch safetensors'."
+            ) from exc
+
+        self._torch = torch
+        self._load_file = load_file
+
         if device.startswith("cuda") and torch.cuda.is_available():
             self.device = torch.device(device)
         else:
-            self.device = torch.device('cpu')
-        
-        # Load the model weights from the SafeTensors file
+            self.device = torch.device("cpu")
+
+        state_dict = self._load_file(model_path)
+        model = self._instantiate_model(kwargs)
+
         try:
-            # Load the state dict from the safetensors file
-            state_dict = self.load_file(model_path)
-            
-            # Create the model architecture (this is the tricky part - we need the model class)
-            # Since the model class isn't stored in the safetensors file, we need it to be provided
-            if 'model_class' not in kwargs:
-                raise ValueError("model_class must be provided in kwargs for SafeTensors engine")
-            
-            model_class = kwargs['model_class']
-            self.model = model_class()  # Initialize the model
-            
-            # Load the state dict into the model
-            self.model.load_state_dict(state_dict)
-            
-            # Set model to evaluation mode
-            self.model.eval()
-            
-            # Move model to specified device
-            self.model.to(self.device)
-            
-            # Extract class names if provided
-            if 'names' in kwargs:
-                self.class_names = kwargs['names']
+            model.load_state_dict(state_dict)
+            model.eval()
+            model.to(self.device)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            raise RuntimeError(
+                f"Failed to load SafeTensors weights from {model_path}: {exc}"
+            ) from exc
+
+        self.model = model
+
+        names = kwargs.get("names")
+        if isinstance(names, (list, tuple)):
+            self.class_names = list(names)
+
+        self.logger.info("SafeTensors engine initialised for %s", model_path)
+
+    def _instantiate_model(self, kwargs: Dict[str, Any]):
+        torch = self._torch
+
+        if "model" in kwargs and kwargs["model"] is not None:
+            model_candidate = kwargs["model"]
+            if callable(model_candidate) and not isinstance(model_candidate, torch.nn.Module):
+                model_candidate = model_candidate()
+        else:
+            builder: Optional[Any] = kwargs.get("model_builder") or kwargs.get("model_class")
+            if builder is None:
+                raise ValueError(
+                    "SafeTensors engine requires 'model', 'model_builder' or 'model_class' in kwargs "
+                    "to construct the network architecture."
+                )
+
+            if isinstance(builder, torch.nn.Module):
+                model_candidate = builder
+            elif isinstance(builder, type):
+                model_candidate = builder()
             else:
-                self.class_names = []
-            
-            self.logger.info(f"SafeTensors engine initialized with model: {model_path}")
-            self.logger.info(f"Using device: {self.device}")
-            self.logger.info(f"Model on device: {next(self.model.parameters()).device}")
-            
-        except Exception as e:
-            raise RuntimeError(f"Failed to initialize SafeTensors engine with model {model_path}: {str(e)}") from e
-    
+                model_candidate = builder()
+
+        if not isinstance(model_candidate, torch.nn.Module):
+            raise TypeError(
+                "SafeTensors model builder must return a torch.nn.Module instance."
+            )
+
+        return model_candidate
+
     def predict(self, image: np.ndarray) -> List[np.ndarray]:
-        """
-        Run inference on an image using SafeTensors model.
-        
-        Args:
-            image: Input image as numpy array (H, W, C)
-            
-        Returns:
-            List of inference results
-        """
-        with torch.no_grad():  # Disable gradient computation for inference
-            # Convert numpy array to PyTorch tensor
-            # PyTorch expects (N, C, H, W) format
-            if len(image.shape) == 3:  # Add batch dimension
+        torch = self._torch
+
+        with torch.no_grad():
+            if image.ndim == 3:
                 image = np.expand_dims(image, axis=0)
-            
-            # Transpose from (N, H, W, C) to (N, C, H, W) if needed
-            if image.shape[-1] in [3, 1]:  # Channels are last
+
+            if image.shape[-1] in (1, 3):
                 image = np.transpose(image, (0, 3, 1, 2))
-            
-            # Convert to tensor and move to device
+
             tensor = torch.from_numpy(image).float().to(self.device)
-            
-            # Normalize if needed (common for PyTorch models)
-            if tensor.max() > 1.0:
-                tensor = tensor / 255.0  # Normalize from [0, 255] to [0, 1]
-            
-            # Run inference
-            try:
-                results = self.model(tensor)
-                
-                # Convert results back to numpy arrays
-                if isinstance(results, torch.Tensor):
-                    # Single output
-                    return [results.cpu().numpy()]
-                elif isinstance(results, (list, tuple)):
-                    # Multiple outputs
-                    return [r.cpu().numpy() if isinstance(r, torch.Tensor) else r for r in results]
-                elif isinstance(results, dict):
-                    # Dictionary output (like in some detection models)
-                    return [v.cpu().numpy() if isinstance(v, torch.Tensor) else v for v in results.values()]
-                else:
-                    # Unknown format, try to convert to numpy
-                    return [np.array(results)]
-                    
-            except Exception as e:
-                raise RuntimeError(f"SafeTensors inference failed: {str(e)}") from e
-    
-    def get_class_names(self) -> List[str]:
-        """
-        Get the class names for the model.
-        
-        Returns:
-            List of class names
-        """
-        return self.class_names
-    
-    def warm_up(self):
-        """
-        Warm up the model by running a dummy inference.
-        """
-        # Create a dummy input with a reasonable size
-        dummy_shape = (1, 3, 640, 640)  # Common for detection models
-        dummy_input = torch.randn(dummy_shape).to(self.device)
-        
+            if tensor.max().item() > 1.0:
+                tensor = tensor / 255.0
+
+            results = self.model(tensor)
+
+            if isinstance(results, torch.Tensor):
+                return [results.detach().cpu().numpy()]
+            if isinstance(results, (list, tuple)):
+                output: List[np.ndarray] = []
+                for value in results:
+                    if isinstance(value, torch.Tensor):
+                        output.append(value.detach().cpu().numpy())
+                    else:
+                        output.append(np.asarray(value))
+                return output
+            if isinstance(results, dict):
+                return [
+                    (value.detach().cpu().numpy() if isinstance(value, torch.Tensor) else np.asarray(value))
+                    for value in results.values()
+                ]
+
+            return [np.asarray(results)]
+
+    def warm_up(self) -> None:
+        torch = self._torch
+        dummy_input = torch.randn(1, 3, 640, 640, device=self.device)
+
         try:
             with torch.no_grad():
                 _ = self.model(dummy_input)
-            self.logger.info("SafeTensors engine warmed up successfully")
-        except Exception as e:
-            self.logger.error(f"Failed to warm up SafeTensors engine: {e}")
+            self.logger.info("SafeTensors engine warm-up completed")
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.warning("SafeTensors engine warm-up failed: %s", exc)
+

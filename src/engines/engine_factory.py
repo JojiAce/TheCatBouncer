@@ -10,15 +10,22 @@ import platform
 from src.engines.base_engine import InferenceEngine, get_optimal_engine_for_hardware
 
 
-def create_inference_engine(model_paths: List[str], device: str = "auto", engine_type: Optional[str] = None) -> Tuple[InferenceEngine, List[str]]:
+def create_inference_engine(
+    model_paths: List[str],
+    device: str = "auto",
+    engine_type: Optional[str] = None,
+    safetensors_options: Optional[Dict[str, Any]] = None,
+) -> Tuple[InferenceEngine, List[str]]:
     """
     Factory function to create the appropriate inference engine based on model path and hardware.
-    
+
     Args:
         model_paths: List of available model paths
         device: Device to run inference on ('auto', 'cpu', 'gpu', 'cuda', etc.)
         engine_type: Specific engine type to use (optional, overrides auto-detection)
-        
+        safetensors_options: Additional keyword arguments forwarded to ``SafeTensorsEngine``
+            (e.g. ``{"model_builder": callable}``).
+
     Returns:
         Tuple of (engine_instance, class_names)
     """
@@ -46,6 +53,9 @@ def create_inference_engine(model_paths: List[str], device: str = "auto", engine
     if model_path is None:
         raise ValueError(f"No compatible model found for engine type '{engine_type}' in provided paths: {model_paths}")
     
+    # Prepare engine specific options
+    safetensors_options = safetensors_options or {}
+
     # Create the appropriate engine
     if engine_type == 'onnx':
         engine = OnnxEngine(model_path, device)
@@ -54,10 +64,11 @@ def create_inference_engine(model_paths: List[str], device: str = "auto", engine
     elif engine_type == 'pytorch':
         engine = PyTorchEngine(model_path, device)
     elif engine_type == 'safetensors':
-        # For SafeTensors, we need to pass a model class, which is unknown here
-        # In a real implementation, this would need to be passed as an argument
-        # For now, we'll raise an error indicating that model_class is required
-        raise ValueError("SafeTensors engine requires a model_class to be specified in kwargs")
+        if not safetensors_options:
+            raise ValueError(
+                "SafeTensors engine requires 'safetensors_options' specifying how to build the model architecture."
+            )
+        engine = SafeTensorsEngine(model_path, device, **safetensors_options)
     elif engine_type == 'coreml':
         engine = CoreMLEngine(model_path, device)
     else:
@@ -155,21 +166,25 @@ def convert_model_format(source_path: str, target_format: str, target_path: str)
             # ONNX to OpenVINO conversion
             from openvino.tools import mo
             from openvino.runtime import serialize
-            
-            # Convert ONNX to OpenVINO IR
-            core = mo.Core()
-            model = core.read_model(model=source_path)
-            compiled_model = core.compile_model(model, device_name='CPU')
-            
-            # Save the model
-            serialize(model, target_path, target_path.replace('.xml', '.bin'))
+
+            model = mo.convert_model(source_path)
+            target_xml = target_path_obj.with_suffix('.xml') if target_path_obj.suffix != '.xml' else target_path_obj
+            target_bin = target_xml.with_suffix('.bin')
+            serialize(model, str(target_xml), str(target_bin))
             return True
         elif source_path_obj.suffix.lower() == '.pt' and target_format == 'safetensors':
             # PyTorch to SafeTensors conversion
             import torch
             from safetensors.torch import save_file
-            
-            state_dict = torch.load(source_path)
+
+            loaded = torch.load(source_path, map_location='cpu')
+            if hasattr(loaded, 'state_dict'):
+                state_dict = loaded.state_dict()
+            elif isinstance(loaded, dict):
+                state_dict = loaded
+            else:
+                raise TypeError("Unsupported PyTorch model format for SafeTensors export")
+
             save_file(state_dict, target_path)
             return True
         elif source_path_obj.suffix.lower() == '.onnx' and target_format == 'coreml':

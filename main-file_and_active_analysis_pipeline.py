@@ -25,6 +25,19 @@ from camera_utils import resolve_camera_source
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger(__name__)
 
+
+def _parse_json_optional(value: str | None, description: str):
+    if value is None:
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError as exc:
+        logger.error(f"Ungültiges JSON für {description}: {exc}")
+        return None
+
 # --- HELFERFUNKTION FÜR ZEITMANAGEMENT ---
 def is_within_schedule(start_str: str, end_str: str) -> bool:
     """
@@ -93,9 +106,11 @@ def preprocess_proc(capture_q, preprocess_q, stop_event, target_res, error_q):
         logger.info("Preprocess-Prozess beendet.")
 
 
-def inference_proc(preprocess_q, result_q, stop_event, engine, error_q):
-    """Führt Inferenz mit der VORGELADENEN Engine aus."""
+def inference_proc(preprocess_q, result_q, stop_event, engine_config, error_q):
+    """Führt Inferenz mit einer prozesslokalen Engine aus."""
+    engine = None
     try:
+        engine, _ = get_inference_engine(engine_config)
         while not stop_event.is_set():
             img = preprocess_q.get(timeout=5)
             t0 = time.time()
@@ -104,7 +119,7 @@ def inference_proc(preprocess_q, result_q, stop_event, engine, error_q):
             result_q.put((img, dets, infer_ms))
     except mp.queues.Empty:
         pass
-    except Exception as e:
+    except Exception:
         error_q.put(f"inference_proc: {traceback.format_exc()}")
     finally:
         logger.info("Inference-Prozess beendet.")
@@ -232,7 +247,7 @@ def logger_proc(log_q, stop_event, log_file, error_q):
 
 
 # --- HAUPT-ORCHESTRIERUNGSFUNKTIONEN ---
-def run_active_analysis(config, inference_engine, class_names) -> str | None:
+def run_active_analysis(config, engine_config, class_names) -> str | None:
     """
     Startet die Pipeline und gibt bei Erfolg den Pfad zum Ereignis-Ordner zurück.
     """
@@ -272,7 +287,7 @@ def run_active_analysis(config, inference_engine, class_names) -> str | None:
     
     workers = 1 if inference_device.lower() == 'gpu' else CPU_WORKERS
     for _ in range(workers):
-        procs.append(mp.Process(target=inference_proc, args=(pre_q, res_q, stop_evt, inference_engine, error_q)))
+        procs.append(mp.Process(target=inference_proc, args=(pre_q, res_q, stop_evt, engine_config, error_q)))
         
     procs += [
         mp.Process(target=postprocess_proc, args=(res_q, disp_q, log_q, stop_evt, success_event, result_path_q, error_q, detection_config, class_names)),
@@ -346,10 +361,34 @@ if __name__ == '__main__':
         engine_config = {
             'engine_name': engine_name, 'model_paths': model_paths, 'device': device
         }
-        inference_engine_instance, class_names = get_inference_engine(engine_config)
+
+        safetensors_builder = config.get('Backend', 'safetensors_model_builder', fallback=None)
+        safetensors_class = config.get('Backend', 'safetensors_model_class', fallback=None)
+        safetensors_args = _parse_json_optional(config.get('Backend', 'safetensors_model_args', fallback=None), 'safetensors_model_args')
+        safetensors_kwargs = _parse_json_optional(config.get('Backend', 'safetensors_model_kwargs', fallback=None), 'safetensors_model_kwargs')
+        class_names_literal = _parse_json_optional(config.get('Backend', 'class_names', fallback=None), 'class_names')
+        class_names_path = config.get('Backend', 'class_names_path', fallback=None)
+
+        if safetensors_builder:
+            engine_config['safetensors_model_builder'] = safetensors_builder
+        if safetensors_class:
+            engine_config['safetensors_model_class'] = safetensors_class
+        if safetensors_args is not None:
+            engine_config['safetensors_model_args'] = safetensors_args
+        if safetensors_kwargs is not None:
+            engine_config['safetensors_model_kwargs'] = safetensors_kwargs
+        if class_names_literal is not None:
+            engine_config['class_names'] = class_names_literal
+        if class_names_path:
+            engine_config['class_names_path'] = class_names_path
+
+        preview_engine, class_names = get_inference_engine(engine_config)
         logger.info(f"Modell erfolgreich geladen. Gefundene Klassen: {len(class_names)}")
         if not class_names:
             raise ValueError("Das geladene Modell enthält keine Klassennamen.")
+
+        # Engine-Instanz aus dem Hauptprozess freigeben – jede Worker-Prozess lädt sein eigenes Modell.
+        del preview_engine
 
         # 2. Hue Controller initialisieren
         hue_config = dict(config.items('PhilipsHue'))
@@ -415,7 +454,7 @@ if __name__ == '__main__':
                     )
 
                 logger.info("Trigger erkannt! Starte aktive Analyse...")
-                event_path = run_active_analysis(config, inference_engine_instance, class_names)
+                event_path = run_active_analysis(config, engine_config, class_names)
 
                 # --- PHASE 3: FARBANALYSE & AKTIONEN ---
                 if event_path:
