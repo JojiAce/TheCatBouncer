@@ -79,34 +79,47 @@ def preprocess_proc(capture_q, preprocess_q, stop_event, target_res, error_q):
     """Holt Frames, konvertiert und skaliert sie."""
     try:
         while not stop_event.is_set():
-            frame = capture_q.get(timeout=5)
+            try:
+                frame = capture_q.get(timeout=1)
+            except mp.queues.Empty:
+                continue
+
             img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             target_width, target_height = target_res
             if img.shape[1] != target_width or img.shape[0] != target_height:
                 img = cv2.resize(img, (target_width, target_height), interpolation=cv2.INTER_AREA)
             preprocess_q.put(img)
-    except mp.queues.Empty:
-        pass
     except Exception as e:
         error_q.put(f"preprocess_proc: {traceback.format_exc()}")
     finally:
         logger.info("Preprocess-Prozess beendet.")
 
 
-def inference_proc(preprocess_q, result_q, stop_event, engine, error_q):
-    """Führt Inferenz mit der VORGELADENEN Engine aus."""
+def inference_proc(preprocess_q, result_q, stop_event, engine_config, error_q):
+    """Führt Inferenz mit einer prozesslokalen Engine aus."""
+    engine = None
     try:
+        engine, _ = get_inference_engine(engine_config)
         while not stop_event.is_set():
-            img = preprocess_q.get(timeout=5)
+            try:
+                img = preprocess_q.get(timeout=1)
+            except mp.queues.Empty:
+                continue
+
             t0 = time.time()
             dets = engine.predict(img)
             infer_ms = (time.time() - t0) * 1000
             result_q.put((img, dets, infer_ms))
-    except mp.queues.Empty:
-        pass
     except Exception as e:
         error_q.put(f"inference_proc: {traceback.format_exc()}")
     finally:
+        if engine is not None:
+            cleanup_fn = getattr(engine, "close", None) or getattr(engine, "release", None)
+            if callable(cleanup_fn):
+                try:
+                    cleanup_fn()
+                except Exception:
+                    logger.debug("Fehler beim Freigeben der Inferenz-Engine", exc_info=True)
         logger.info("Inference-Prozess beendet.")
 
 
@@ -140,8 +153,11 @@ def postprocess_proc(result_q, display_q, log_q, stop_event, success_event, resu
 
     try:
         while not stop_event.is_set():
-            img, dets, infer_ms = result_q.get(timeout=5)
-            
+            try:
+                img, dets, infer_ms = result_q.get(timeout=1)
+            except mp.queues.Empty:
+                continue
+
             if dets and dets[0] is not None:
                 for *box, conf, cls_id in dets[0]:
                     if class_names[int(cls_id)] == target_name and conf >= min_conf:
@@ -185,9 +201,12 @@ def display_writer_proc(display_q, video_path, show_window, display_res, fps, st
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         os.makedirs(os.path.dirname(video_path), exist_ok=True)
         writer = cv2.VideoWriter(video_path, fourcc, fps, display_res)
-        
+
         while not stop_event.is_set():
-            frame = display_q.get(timeout=5)
+            try:
+                frame = display_q.get(timeout=1)
+            except mp.queues.Empty:
+                continue
             if writer:
                 writer.write(frame)
             if show_window:
@@ -195,8 +214,6 @@ def display_writer_proc(display_q, video_path, show_window, display_res, fps, st
                 if cv2.waitKey(1) & 0xFF == ord(exit_key):
                     stop_event.set()
                     break
-    except mp.queues.Empty:
-        pass
     except Exception as e:
         error_q.put(f"display_writer_proc: {traceback.format_exc()}")
     finally:
@@ -232,7 +249,7 @@ def logger_proc(log_q, stop_event, log_file, error_q):
 
 
 # --- HAUPT-ORCHESTRIERUNGSFUNKTIONEN ---
-def run_active_analysis(config, inference_engine, class_names) -> str | None:
+def run_active_analysis(config, inference_engine_config, class_names) -> str | None:
     """
     Startet die Pipeline und gibt bei Erfolg den Pfad zum Ereignis-Ordner zurück.
     """
@@ -269,10 +286,10 @@ def run_active_analysis(config, inference_engine, class_names) -> str | None:
         mp.Process(target=capture_proc, args=(cap_q, CAMERA_SRC, ACTIVE_RES, FPS_HIGH, stop_evt, error_q)),
         mp.Process(target=preprocess_proc, args=(cap_q, pre_q, stop_evt, ACTIVE_RES, error_q)),
     ]
-    
+
     workers = 1 if inference_device.lower() == 'gpu' else CPU_WORKERS
     for _ in range(workers):
-        procs.append(mp.Process(target=inference_proc, args=(pre_q, res_q, stop_evt, inference_engine, error_q)))
+        procs.append(mp.Process(target=inference_proc, args=(pre_q, res_q, stop_evt, inference_engine_config, error_q)))
         
     procs += [
         mp.Process(target=postprocess_proc, args=(res_q, disp_q, log_q, stop_evt, success_event, result_path_q, error_q, detection_config, class_names)),
@@ -351,6 +368,15 @@ if __name__ == '__main__':
         if not class_names:
             raise ValueError("Das geladene Modell enthält keine Klassennamen.")
 
+        # Die im Hauptprozess geladene Engine wird nur zur Validierung genutzt.
+        prototype_cleanup = getattr(inference_engine_instance, "close", None) or getattr(inference_engine_instance, "release", None)
+        if callable(prototype_cleanup):
+            try:
+                prototype_cleanup()
+            except Exception:
+                logger.debug("Fehler beim Freigeben der prototypischen Inferenz-Engine", exc_info=True)
+        inference_engine_instance = None
+
         # 2. Hue Controller initialisieren
         hue_config = dict(config.items('PhilipsHue'))
         hue_controller = HueController(hue_config.get('bridge_ip'), hue_config.get('app_key'))
@@ -415,7 +441,7 @@ if __name__ == '__main__':
                     )
 
                 logger.info("Trigger erkannt! Starte aktive Analyse...")
-                event_path = run_active_analysis(config, inference_engine_instance, class_names)
+                event_path = run_active_analysis(config, engine_config, class_names)
 
                 # --- PHASE 3: FARBANALYSE & AKTIONEN ---
                 if event_path:
